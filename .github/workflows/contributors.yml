@@ -6,6 +6,7 @@ on:
 jobs:
   add-contributors:
     runs-on: ubuntu-latest
+    if: github.repository == 'saltyorg/Sandbox'
     steps:
       - uses: actions/checkout@v7
 
