@@ -178,6 +178,7 @@
     - { role: vaultwarden, tags: ['vaultwarden'] }
     - { role: vnstat, tags: ['vnstat'] }
     - { role: watchstate, tags: ['watchstate'] }
+    - { role: webstation, tags: ['webstation'] }
     - { role: wikijs, tags: ['wikijs'] }
     - { role: wireguard, tags: ['wireguard'] }
     - { role: wizarr, tags: ['wizarr'] }
