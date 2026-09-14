@@ -23,6 +23,7 @@
 - name: Include RomM role
   ansible.builtin.include_role:
     name: romm
+    public: true
   when: webstation_role_dependency_romm | bool
 
 - name: Save Webstation Broker Secret Saltbox facts
@@ -91,12 +92,23 @@
   loop_control:
     label: "{{ item.item }}"
 
+# RomM self-generates config.yml on first container start. Wait for that to
+# finish so we only APPEND the streaming block to RomM's real config and never
+# fabricate the file (which would wipe database/redis/filesystem/exclude keys).
+- name: Wait for RomM to generate its config.yml
+  ansible.builtin.wait_for:
+    path: "{{ romm_role_paths_location }}/config/config.yml"
+    search_regex: '(database|redis|filesystem|exclude):'
+    timeout: 180
+  when: webstation_role_dependency_romm | bool
+
 - name: Configure RomM streaming for Webstation
   ansible.builtin.blockinfile:
     path: "{{ romm_role_paths_location }}/config/config.yml"
     marker: "# {mark} ANSIBLE MANAGED STREAMING (webstation role)"
     block: "{{ lookup('template', 'romm_streaming_config.yml.j2') }}"
     insertafter: EOF
+    create: false
   notify: Restart RomM container
 
 - name: Create Docker container
