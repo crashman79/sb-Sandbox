@@ -11,20 +11,16 @@
 # Basics
 ################################
 
-# Container identity: named romm-webstation (not webstation) so the association
-# with RomM is obvious in docker ps/logs and cleanup is unambiguous. Drives the
-# container name, hostname, network alias, broker_host and data folder.
+# Named romm-webstation (not webstation) so the RomM link is clear in docker ps / logs.
 webstation_name: romm-webstation
 
 ################################
 # Settings
 ################################
 
-# RomM streaming V2 (webstation protocol) requires RomM 5.3.0-alpha.1+.
-# This role does NOT upgrade RomM automatically; it fails with instructions
-# when the running container is too old.
+# Streaming needs RomM >= 5.3.0-alpha.1; the role fails with guidance if older.
 webstation_role_romm_required_version: "5.3.0-alpha.1"
-# Include the RomM role so the backend, config and library stay in sync.
+# Set false if RomM is managed separately.
 webstation_role_dependency_romm: true
 # Label shown in the RomM UI streaming selector.
 webstation_role_label: "Webstation"
@@ -35,13 +31,10 @@ webstation_role_subfolder: "/streaming"
 # Web
 ################################
 
-# Streaming is served through traefik at https://romm-stream.<domain>,
-# mirroring the RomM role. The subdomain was chosen to avoid clashing with the
-# `webstation` container name used for broker_host.
+# Served by Traefik at https://romm-stream.<domain>, mirroring the RomM role.
 webstation_role_web_subdomain: "romm-stream"
 webstation_role_web_domain: "{{ user.domain }}"
-# The broker's own HTTP frontend (port 3000 in the container). Traefik targets
-# this for its loadbalancer; the stream is only ever served HTTPS externally.
+# Broker's internal HTTP frontend (container port 3000); Traefik terminates TLS.
 webstation_role_web_port: "3000"
 webstation_role_web_scheme: "http"
 webstation_role_web_url: "{{ lookup('role_web', role='webstation', scheme='https') }}"
@@ -58,8 +51,7 @@ webstation_role_dns_proxy: "{{ dns_proxied }}"
 # Traefik
 ################################
 
-# Same router setup as RomM: authelia + cloudflarewarp SSO middleware and the
-# cfdns certresolver, so the stream UI inherits the stack's auth and certs.
+# Mirrors RomM's Traefik setup (authelia + cloudflarewarp SSO, cfdns certs).
 webstation_role_traefik_sso_middleware: "{{ traefik_default_sso_middleware }}"
 webstation_role_traefik_middleware_default: "{{ traefik_default_middleware }}"
 webstation_role_traefik_middleware_custom: ""
@@ -70,208 +62,15 @@ webstation_role_traefik_enabled: true
 webstation_role_traefik_api_enabled: false
 webstation_role_traefik_api_endpoint: ""
 
-# Broker API base. Server-to-server only, reachable on the docker network via
-# the container alias; it must never be hit over HTTPS (no ssl context is
-# honored broker-side).
+# Broker API base; server-to-server only on the docker network (no TLS broker-side).
 webstation_role_broker_host: "http://{{ webstation_name }}:3000"
 
-# Platforms served by this container. Each entry is either the emulator name
-# (shorthand) or a block overriding emulator, label and memory_card_sync for
-# that platform (see RomM config reference: streaming). The per-platform label
-# names the play action in the RomM UI - human-friendly system or emulator
-# names below; the container label only names the fleet view.
-#
-# Sources: broker 0.8.1 `retroarch_platforms.json` (RomM slug -> libretro core,
-# cores download on demand) and the broker `REGISTRY` for standalone emulators.
-# Standalone entries (ps2, ngc) follow the RomM migration guide; everything else
-# goes through retroarch, whose cores the broker picks from the platform slug.
-# NOTE: `psx` is the slug (broker table + RomM reference); the firmware FOLDER
-# is bios/ps/ - see webstation_role_bios_folders.
+# slug -> {emulator, label} this container serves. Amiga-only for now
+# (the original reason for webstation); expand the map later as needed.
 webstation_role_platforms:
-  # Nintendo
-  nes:
-    emulator: retroarch
-    label: NES
-  famicom:
-    emulator: retroarch
-    label: Famicom
-  fds:
-    emulator: retroarch
-    label: Famicom Disk System
-  snes:
-    emulator: retroarch
-    label: Super Nintendo
-  sfam:
-    emulator: retroarch
-    label: Super Famicom
-  n64:
-    emulator: retroarch
-    label: Nintendo 64
-  ngc:
-    emulator: dolphin
-    label: Dolphin
-    memory_card_sync: true
-  wii:
-    emulator: retroarch
-    label: Wii
-  gb:
-    emulator: retroarch
-    label: Game Boy
-  gbc:
-    emulator: retroarch
-    label: Game Boy Color
-  gba:
-    emulator: retroarch
-    label: Game Boy Advance
-  virtualboy:
-    emulator: retroarch
-    label: Virtual Boy
-  nds:
-    emulator: retroarch
-    label: Nintendo DS
-  3ds:
-    emulator: retroarch
-    label: Nintendo 3DS
-  # Sega
-  genesis:
-    emulator: retroarch
-    label: Sega Genesis
-  sms:
-    emulator: retroarch
-    label: Master System
-  gamegear:
-    emulator: retroarch
-    label: Game Gear
-  sg1000:
-    emulator: retroarch
-    label: SG-1000
-  segacd:
-    emulator: retroarch
-    label: Sega CD
-  sega32:
-    emulator: retroarch
-    label: 32X
-  dc:
-    emulator: retroarch
-    label: Dreamcast
-  saturn:
-    emulator: retroarch
-    label: Saturn
-  # Sony
-  psx:
-    emulator: retroarch
-    label: PlayStation
-  psp:
-    emulator: retroarch
-    label: PSP
-  ps2:
-    emulator: pcsx2
-    label: PCSX2
-    memory_card_sync: true
-  # NEC
-  tg16:
-    emulator: retroarch
-    label: TurboGrafx-16
-  supergrafx:
-    emulator: retroarch
-    label: SuperGrafx
-  turbografx-cd:
-    emulator: retroarch
-    label: TurboGrafx-CD
-  # SNK
-  neogeoaes:
-    emulator: retroarch
-    label: Neo Geo AES
-  neogeomvs:
-    emulator: retroarch
-    label: Neo Geo MVS
-  neo-geo-cd:
-    emulator: retroarch
-    label: Neo Geo CD
-  neo-geo-pocket:
-    emulator: retroarch
-    label: Neo Geo Pocket
-  neo-geo-pocket-color:
-    emulator: retroarch
-    label: Neo Geo Pocket Color
-  wonderswan:
-    emulator: retroarch
-    label: WonderSwan
-  wonderswan-color:
-    emulator: retroarch
-    label: WonderSwan Color
-  # Atari
-  atari2600:
-    emulator: retroarch
-    label: Atari 2600
-  atari5200:
-    emulator: retroarch
-    label: Atari 5200
-  atari7800:
-    emulator: retroarch
-    label: Atari 7800
-  lynx:
-    emulator: retroarch
-    label: Atari Lynx
-  jaguar:
-    emulator: retroarch
-    label: Atari Jaguar
-  atari-st:
-    emulator: retroarch
-    label: Atari ST
-  # Others
-  3do:
-    emulator: retroarch
-    label: 3DO
-  colecovision:
-    emulator: retroarch
-    label: ColecoVision
-  intellivision:
-    emulator: retroarch
-    label: Intellivision
-  vectrex:
-    emulator: retroarch
-    label: Vectrex
-  odyssey-2:
-    emulator: retroarch
-    label: Odyssey 2
-  dos:
-    emulator: retroarch
-    label: DOS
   amiga:
     emulator: retroarch
     label: Amiga
-  c64:
-    emulator: retroarch
-    label: Commodore 64
-  msx:
-    emulator: retroarch
-    label: MSX
-  msx2:
-    emulator: retroarch
-    label: MSX2
-  zxs:
-    emulator: retroarch
-    label: ZX Spectrum
-  arcade:
-    emulator: retroarch
-    label: Arcade
-  cps1:
-    emulator: retroarch
-    label: CPS-1
-  cps2:
-    emulator: retroarch
-    label: CPS-2
-  cps3:
-    emulator: retroarch
-    label: CPS-3
-
-# BIOS sync: RetroArch resolves ALL system files from its single effective
-# system dir, so per-platform bios/<folder>/ trees cannot each bind-mount there.
-# The role syncs every mapped platform's BIOS into the staging dir on each run
-# (re-run the role after adding BIOS to RomM). Folders default to the platform
-# slug; entries here override names that differ - folders are NOT slugs (RomM
-# tracks PlayStation firmware in bios/ps/ while the slug is psx).
 webstation_role_bios_folders:
   psx: ps
 
@@ -286,24 +85,15 @@ webstation_role_paths_folders_list:
   - "{{ webstation_role_paths_location }}/config"
   - "{{ webstation_role_host_system_dir }}"
 
-# Library read-only mirror. RomM stores rom.full_path relative to the library
-# root (e.g. "roms/amiga/foo.zip"), so the broker resolves
-# library_path + full_path. Mirroring romm's own mount 1:1 (same host source,
-# /romm/library) keeps that path valid inside this container. Inherits RomM's
-# library because webstation streams RomM's ROMs; standalone use
-# (webstation_role_dependency_romm: false) must set this explicitly.
+# Read-only mirror of RomM's library; the broker resolves rom.full_path under it.
+# Inherits RomM's library (override for standalone use).
 webstation_role_library_folder: "{{ romm_role_library_folder }}"
 webstation_role_library_mount: "{{ webstation_role_library_folder }}"
 webstation_role_library_target: "/romm/library"
 
-# BIOS staging: a flat role-managed host dir (no tree for the user to build) holding
-# the synced contents of every mapped platform's bios/<folder>/ tree. The user
-# only places files in RomM's library - nothing is bundled in the role.
-# Bind-mounted to webstation_role_system_effective_dir below.
+# Flat role-managed host dir holding the synced BIOS; user only adds files to RomM's library.
 webstation_role_host_system_dir: "{{ webstation_role_paths_location }}/system"
-# Container-side target: RetroArch's effective system directory (system_directory
-# in retroarch.cfg with HOME=/config). PUAE probes <system>/capsimg.so first and
-# kickstarts at root; other cores resolve their firmware the same way.
+# RetroArch's effective system directory (HOME=/config); cores resolve firmware here.
 webstation_role_system_effective_dir: "/config/.config/retroarch/system"
 
 ################################
@@ -316,7 +106,7 @@ webstation_role_docker_container: "{{ webstation_name }}"
 # Image
 webstation_role_docker_image_pull: true
 webstation_role_docker_image_repo: "lscr.io/linuxserver/webstation"
-# The `romm` tag tracks the RomM-tailored webstation build. Do not use `latest`.
+# `romm` tag = RomM-tailored build; do not use `latest`.
 webstation_role_docker_image_tag: "romm"
 webstation_role_docker_image: "{{ lookup('role_var', '_docker_image_repo', role='webstation') }}:{{ lookup('role_var', '_docker_image_tag', role='webstation') }}"
 
@@ -346,11 +136,7 @@ webstation_role_docker_mounts_default:
     source: "{{ webstation_role_library_mount }}"
     target: "{{ webstation_role_library_target }}"
     read_only: true
-  # Staging dir (role-synced platform BIOS, flat) bound to RetroArch's effective
-  # system dir. Read-write: staging is disposable (re-synced every run) and some
-  # cores write alongside their system files; the shared library stays pristine
-  # behind the read-only mount above. Saves/states live under
-  # /config/.retroarch per broker.cfg, never in system.
+  # Staging dir (synced BIOS) bound to RetroArch's system dir; read-write because staging is disposable and some cores write here.
   - type: bind
     source: "{{ webstation_role_host_system_dir }}"
     target: "{{ webstation_role_system_effective_dir }}"
@@ -358,19 +144,11 @@ webstation_role_docker_mounts_custom: []
 webstation_role_docker_mounts: "{{ lookup('role_var', '_docker_mounts_default', role='webstation')
                                    + lookup('role_var', '_docker_mounts_custom', role='webstation') }}"
 
-# Access model: traefik-only by default. Traefik routes
-# https://romm-stream.<domain> to the container's HTTP frontend (port 3000).
-# The stream plays through RomM's Play buttons, desktop sessions launch from
-# RomM (broker `desktop` launcher, no config needed), and the full Selkies UI
-# answers on the same origin - all behind the stack SSO (authelia).
-#
-# Direct LAN access to the desktop GUI (the original container experience:
-# https://<host>:3001, self-signed cert) is OFF by default. Enable it in
-# host_vars/localhost.yml:
-#   webstation_role_direct_access_enabled: true
-# WARNING: only on a trusted local network. The GUI ships with no built-in
-# auth and includes a passwordless-sudo terminal - anyone who can reach these
-# ports owns the container.
+# Traefik-only by default: https://romm-stream.<domain> -> container port 3000, behind
+# the stack SSO. The RomM Play buttons and desktop sessions launch from RomM.
+# Direct LAN GUI (ports 3000/3001, self-signed) is OFF by default - enable
+# webstation_role_direct_access_enabled only on a trusted network; the GUI has no
+# auth and includes a passwordless-sudo terminal.
 webstation_role_direct_access_enabled: false
 webstation_role_docker_ports_default: "{{ ['3000:3000', '3001:3001'] if webstation_role_direct_access_enabled | bool else [] }}"
 webstation_role_docker_ports_custom: []
@@ -389,8 +167,7 @@ webstation_role_docker_networks: "{{ docker_networks_common
                                     + lookup('role_var', '_docker_networks_custom', role='webstation') }}"
 
 # GPU
-# Hardware rendering is effectively required for emulators (software rendering
-# covers the desktop only). Enables the /dev/dri device on Intel hosts.
+# Hardware rendering is effectively required for emulators; enables /dev/dri.
 webstation_role_docker_gpu_enabled: true
 
 # Shared memory (selkies/codecs)
@@ -399,8 +176,7 @@ webstation_role_docker_shm_size: "1G"
 # Restart Policy
 webstation_role_docker_restart_policy: unless-stopped
 
-# Healthcheck: broker API under the SUBFOLDER prefix (curl is present in the
-# LSIO selkies base image).
+# Healthcheck hits the broker API under the SUBFOLDER prefix (curl is in the base image).
 webstation_role_docker_healthcheck:
   test:
     - "CMD-SHELL"
@@ -411,5 +187,4 @@ webstation_role_docker_healthcheck:
   timeout: 10s
 
 # No _docker_user: the LSIO image manages its own (PUID/PGID) user.
-# DNS/Traefik: mirrors the RomM role so the stream is served at
-# https://romm-stream.<domain> behind traefik (authelia SSO, cfdns certs).
+# DNS/Traefik mirror the RomM role, serving https://romm-stream.<domain>.

@@ -14,9 +14,7 @@
     dns_zone: "{{ lookup('role_var', '_dns_zone', role='webstation') }}"
     dns_proxy: "{{ lookup('role_var', '_dns_proxy', role='webstation') }}"
 
-# Remove the existing container before its dependency (RomM role, which
-# redeploys RomM and its MariaDB backend) is imported, so the old container
-# is not still accessing the backend during changes (see PR #561 review).
+# Remove before including the RomM role so the old container isn't touching the backend mid-change.
 - name: Remove existing Docker container
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/docker/remove_docker_container.yml"
 
@@ -93,9 +91,7 @@
   loop_control:
     label: "{{ item.item }}"
 
-# RomM self-generates config.yml on first container start. Wait for that to
-# finish so we only APPEND the streaming block to RomM's real config and never
-# fabricate the file (which would wipe database/redis/filesystem/exclude keys).
+# RomM writes config.yml on first start; wait so we append to it, not fabricate it.
 - name: Wait for RomM to generate its config.yml
   ansible.builtin.wait_for:
     path: "{{ romm_role_paths_location }}/config/config.yml"
@@ -115,9 +111,5 @@
 - name: Create Docker container
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/docker/create_docker_container.yml"
 
-# Webstation is self-configuring via environment (BROKER_SECRET, ROM_ROOT,
-# SUBFOLDER, ...); the broker receives its platform list per session from RomM
-# over the API and never reads RomM's config.yml. However, RomM exposes no UI
-# for its streaming block (Settings -> Library Management), so the webstation
-# role seeds it in RomM's config.yml. This is functional coupling only - the
-# webstation PR stays independent of the romm role PR.
+# RomM has no UI for streaming, so this role seeds the block in RomM's config.yml.
+# Functionally coupled, but a separate PR from the romm role.
