@@ -1,0 +1,4 @@
+---
+- name: Restart RomM container
+  ansible.builtin.command: "docker restart {{ romm_name }}"
+  changed_when: true

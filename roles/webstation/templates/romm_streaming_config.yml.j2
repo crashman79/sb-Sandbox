@@ -1,0 +1,18 @@
+# BEGIN ANSIBLE MANAGED STREAMING (webstation role)
+streaming:
+  enabled: true
+  containers:
+    - broker_host: {{ webstation_role_broker_host }}
+      broker_secret: {{ webstation_broker_secret_saltbox_facts.facts.secret_key }}
+      host: https://{{ webstation_role_web_subdomain }}.{{ webstation_role_web_domain }}
+      label: Webstation
+      library_path: /romm/library
+      platforms:
+{% for item in webstation_role_platforms | dict2items | sort(attribute='key') %}
+        {{ item.key }}:
+          emulator: {{ item.value.emulator }}
+          label: {{ item.value.label }}
+{% endfor %}
+      protocol: webstation
+      subfolder: /streaming
+# END ANSIBLE MANAGED STREAMING (webstation role)

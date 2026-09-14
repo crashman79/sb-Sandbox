@@ -91,11 +91,20 @@
   loop_control:
     label: "{{ item.item }}"
 
+- name: Configure RomM streaming for Webstation
+  ansible.builtin.blockinfile:
+    path: "{{ romm_role_paths_location }}/config/config.yml"
+    marker: "# {mark} ANSIBLE MANAGED STREAMING (webstation role)"
+    block: "{{ lookup('template', 'romm_streaming_config.yml.j2') }}"
+    insertafter: EOF
+  notify: Restart RomM container
+
 - name: Create Docker container
   ansible.builtin.include_tasks: "{{ resources_tasks_path }}/docker/create_docker_container.yml"
 
 # Webstation is self-configuring via environment (BROKER_SECRET, ROM_ROOT,
 # SUBFOLDER, ...); the broker receives its platform list per session from RomM
-# over the API and never reads RomM's config.yml. RomM's streaming block is the
-# user's to manage (Settings -> Library Management, or their own config.yml) so
-# the two roles share no config file - only the library, mounted like-for-like.
+# over the API and never reads RomM's config.yml. However, RomM exposes no UI
+# for its streaming block (Settings -> Library Management), so the webstation
+# role seeds it in RomM's config.yml. This is functional coupling only - the
+# webstation PR stays independent of the romm role PR.
