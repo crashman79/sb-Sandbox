@@ -87,6 +87,7 @@
     remote_src: true
     owner: "{{ uid }}"
     group: "{{ gid }}"
+    mode: "u=rwX,g=rX,o=rX"
   loop: "{{ webstation_bios_stat.results }}"
   when: item.stat.exists and item.stat.isdir
   loop_control:
